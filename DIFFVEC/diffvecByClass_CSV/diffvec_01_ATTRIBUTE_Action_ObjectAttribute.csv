@@ -1,0 +1,10 @@
+apple,picker,collect,fee,1
+apple,picker,hunter,game,1
+apple,picker,paint,house,1
+apple,picker,vitamin,deficiency,1
+collect,fee,hunter,game,1
+collect,fee,paint,house,1
+collect,fee,vitamin,deficiency,1
+hunter,game,paint,house,1
+hunter,game,vitamin,deficiency,1
+paint,house,vitamin,deficiency,1
