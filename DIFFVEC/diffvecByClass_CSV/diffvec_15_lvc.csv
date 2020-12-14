@@ -1,0 +1,10 @@
+worker,librarian,give,approval,15
+worker,librarian,have,charge,15
+worker,librarian,make,acquisition,15
+worker,librarian,place,order,15
+give,approval,have,charge,15
+give,approval,make,acquisition,15
+give,approval,place,order,15
+have,charge,make,acquisition,15
+have,charge,place,order,15
+make,acquisition,place,order,15
