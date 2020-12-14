@@ -1,14 +1,10 @@
-###  UTILITIES FOR ANALOGIES LOADING
+###  UTILITIES FOR ANALOGIES LOADING: POSITIVE + NEGATIVE EXAMPLES
+import csv, random, datetime
+import pandas as pd
 import numpy as np
-import csv
-import random
-import datetime
 from datetime import date
 from sklearn import metrics 
 from sklearn.model_selection import train_test_split
-
-#TO SPLIT FILES
-import pandas as pd
 
 #KERAS
 from keras.models import Sequential
@@ -27,9 +23,8 @@ def split(dataSet,testSize): #create 2 files train.csv and test.csv WE HAVE TO S
     Xtrain.to_csv('train.csv',index=False)
     Xtest.to_csv('test.csv',index=False)
 
-#LOADING GLOVEFILE
+#LOADING GLOVEFILE - RETURNING FILE AND SIZE
 def loadGloveModel(gloveFile):
-    #print ("Loading Glove Pretrained Model '"+gloveFile+'\'')
     with open(gloveFile, encoding="utf8" ) as f:
        content = f.readlines()
     model = {}
@@ -39,35 +34,49 @@ def loadGloveModel(gloveFile):
         embedding = np.array([float(val) for val in splitLine[1:]])
         model[word] = embedding
         size=len(embedding)
-    #print ("Done with loading ",len(model)," words loaded with",size," components each")
     return model, size
 
-#CREATE THE STACK FOR 1 ANALOGY - NO PERMUTATION - a b c d are words
-def convertCSVRow2Glove(gloveModel,row):
+#CREATE AN IMAGE FOR ONE VALID WORD ANALOGY - NO PERMUTATION
+'''def convertCSVRow2Glove(gloveModel,row):
+    print(row['a'])
     a=gloveModel[row['a']]
     b=gloveModel[row['b']]
     c=gloveModel[row['c']]
     d=gloveModel[row['d']]
-    return np.stack([a,b,c,d]).T
+    return np.stack([a,b,c,d]).T'''
 
-#CREATE A CLASS OF 8 PERMUT  - a b c d are vectors
+#CREATE A CLASS OF 8 PERMUT FROM A B C D GLOVE VECTORS
 def createClassOf8ImgWithClass(gloveModel, a, b, c, d): 
-    im1=np.stack([a,b,c,d]).T
-    im2=np.stack([a,c,b,d]).T
-    im3=np.stack([c,d,a,b]).T
-    im4=np.stack([c,a,d,b]).T
-    im5=np.stack([b,a,d,c]).T
-    im6=np.stack([b,d,a,c]).T
-    im7=np.stack([d,b,c,a]).T
-    im8=np.stack([d,c,b,a]).T
-    return im1,im2,im3,im4,im5,im6,im7,im8
+    abcd=np.stack([a,b,c,d]).T
+    acbd=np.stack([a,c,b,d]).T
+    cdab=np.stack([c,d,a,b]).T
+    cadb=np.stack([c,a,d,b]).T
+    badc=np.stack([b,a,d,c]).T
+    bdac=np.stack([b,d,a,c]).T
+    dbca=np.stack([d,b,c,a]).T
+    dcba=np.stack([d,c,b,a]).T
+    return abcd,acbd,cdab,cadb,badc,bdac,dbca,dcba
+
+#FOR DIFFVEC ONLY 4 PERMUTATIONS INSTEAD OF 8
+def createClassOf4ImgWithClass(gloveModel, a, b, c, d): 
+    abcd,acbd,cdab,cadb,badc,bdac,dbca,dcba = createClassOf8ImgWithClass(gloveModel, a, b, c, d)
+    return abcd,cdab,badc,dcba
 
 def createClassOf8ImgWithClassFromRowabcd(gloveModel, row):
+    print(row['a'])
     a=gloveModel[row['a']]
     b=gloveModel[row['b']]
     c=gloveModel[row['c']]
     d=gloveModel[row['d']]
     return createClassOf8ImgWithClass(gloveModel,a,b,c,d)
+
+#FOR DIFFVEC ONLY 4 PERMUTATIONS INSTEAD OF 8
+def createClassOf4ImgWithClassFromRowabcd(gloveModel, row):
+    a=gloveModel[row['a']]
+    b=gloveModel[row['b']]
+    c=gloveModel[row['c']]
+    d=gloveModel[row['d']]
+    return createClassOf4ImgWithClass(gloveModel,a,b,c,d)
 
 def createClassOf8ImgWithClassFromRowabcdSAT(gloveModel, row):
     a=gloveModel[row['a']]
@@ -78,13 +87,20 @@ def createClassOf8ImgWithClassFromRowabcdSAT(gloveModel, row):
     im1,im2,im3,im4,im5,im6,im7,im8 = createClassOf8ImgWithClass(gloveModel,a,b,c,d)
     return im1,im2,im3,im4,im5,im6,im7,im8, int(label)
 
-
 def createClassOf8ImgWithClassFromRowbacd(gloveModel, row):
     a=gloveModel[row['a']]
     b=gloveModel[row['b']]
     c=gloveModel[row['c']]
     d=gloveModel[row['d']]
     return createClassOf8ImgWithClass(gloveModel,b,a,c,d)
+
+#FOR DIFFVEC ONLY 4 PERMUTATIONS INSTEAD OF 8
+def createClassOf4ImgWithClassFromRowbacd(gloveModel, row):
+    a=gloveModel[row['a']]
+    b=gloveModel[row['b']]
+    c=gloveModel[row['c']]
+    d=gloveModel[row['d']]
+    return createClassOf4ImgWithClass(gloveModel,b,a,c,d)
 
 def createClassOf8ImgWithClassFromRowcbad(gloveModel, row):
     a=gloveModel[row['a']]
@@ -93,7 +109,17 @@ def createClassOf8ImgWithClassFromRowcbad(gloveModel, row):
     d=gloveModel[row['d']]
     return createClassOf8ImgWithClass(gloveModel,c,b,a,d)
 
-def extend(gloveModel, size, dataset):  #dataset is a csv file of valid analogies
+#FOR DIFFVEC ONLY 4 PERMUTATIONS INSTEAD OF 8
+def createClassOf4ImgWithClassFromRowcbad(gloveModel, row):
+    a=gloveModel[row['a']]
+    b=gloveModel[row['b']]
+    c=gloveModel[row['c']]
+    d=gloveModel[row['d']]
+    return createClassOf4ImgWithClass(gloveModel,c,b,a,d)
+
+#EXTENDING DATASET
+#GOOGLE - FULL EXTENSION ACCORDING TO ANALOGY DEFINITION TAKING 8 PERMUTATIONS
+def extendGoogle(gloveModel, size, dataset):  #dataset is a csv file of valid analogies
     with open(dataset, newline='') as csvfile:
         X, y = [], []
         reader = csv.DictReader(csvfile) 
@@ -106,22 +132,19 @@ def extend(gloveModel, size, dataset):  #dataset is a csv file of valid analogie
                 X.append(np.array(im))
                 y.append(1)
                 count+=1
-        
             for im in bacd: 
                 X.append(np.array(im))
                 y.append(0)
-                count+=1
-            
+                count+=1 
             for im in cbad: 
                 X.append(np.array(im))
                 y.append(0)
                 count+=1
     X = np.array(X) 
     X = X.reshape(X.shape[0], size, 4, 1)
-    y=np.array(y)
-    
+    y=np.array(y) 
     return X, y  
-
+#SAT - PARTIAL EXTENSION ACCORDING TO ANALOGY DEFINITION AND TAKING NEGATIVE SAT EXAMPLES
 def extendSAT(gloveModel, size, SAT):  #dataset is the csv file of valid and non valid analogies
     with open(SAT, newline='') as csvfile:
         X, y = [], []
@@ -140,25 +163,34 @@ def extendSAT(gloveModel, size, SAT):  #dataset is the csv file of valid and non
     y=np.array(y)
     print('initial SAT size: ',str(countInDataset), 'final SAT size: ',str(countNumberOfExamples))
     return X, y  
-
-
-'''
-def prepareDataAsIs(gloveModel,size,dataset): #do not add any permut - dataset with 1st line a b c d label
+#DIFFVEC - PARTIAL EXTENSION ACCORDING TO ANALOGY DEFINITION TAKING ONLY 4 PERMUTATIONS
+def extendDiffVec(gloveModel, size, dataset):  #dataset is a csv file of valid analogies
     with open(dataset, newline='') as csvfile:
         X, y = [], []
-        reader = csv.DictReader(csvfile)
+        reader = csv.DictReader(csvfile) 
         count = 0
         for row in reader:
-            im=convertCSVRow2Glove(gloveModel,row)
-            count+=1
-            X.append(np.array(im))
-            y.append(int(row['label']))
-        print('Size of dataset '+dataset+': ',count)
-        X = np.array(X) 
-        X = X.reshape(X.shape[0], size, 4, 1)
-        y=np.array(y)
-        return X, y   
-'''
+            abcd=createClassOf4ImgWithClassFromRowabcd(gloveModel,row)
+            bacd=createClassOf4ImgWithClassFromRowbacd(gloveModel,row)
+            cbad=createClassOf4ImgWithClassFromRowcbad(gloveModel,row)
+            for im in abcd:
+                X.append(np.array(im))
+                y.append(1)
+                count+=1
+        
+            for im in bacd: 
+                X.append(np.array(im))
+                y.append(0)
+                count+=1
+            
+            for im in cbad: 
+                X.append(np.array(im))
+                y.append(0)
+                count+=1
+    X = np.array(X) 
+    X = X.reshape(X.shape[0], size, 4, 1)
+    y=np.array(y) 
+    return X, y  
 
 ## DESIGNING NEURAL NETWORK MODELS
 def createCNNModel(shape):
@@ -169,6 +201,9 @@ def createCNNModel(shape):
     model.add(Conv2D(64, (2, 2),strides=(2,2)))
     model.add(BatchNormalization(axis=-1))
     model.add(Activation('relu'))
+    #model.add(Conv2D(32, (2, 2)))  #ADDED GILLES
+    #model.add(BatchNormalization(axis=-1)) #ADDED GILLES
+    #model.add(Activation('relu')) #ADDED GILLES
     #model.add(Dense(12,activation='relu'))
     model.add(Flatten())
     model.add(Dense(1, activation='sigmoid'))
