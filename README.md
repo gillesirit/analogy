@@ -4,7 +4,7 @@ Contains Machine Learning approach for word analogies.
 
 The GloVe embedding that we used can be found on https://nlp.stanford.edu/projects/glove/ as http://nlp.stanford.edu/data/glove.6B.zip.
 
-We provide BATS, Google and DiffVec datasets a CSV.  These are the data we used to train and test.
+We provide BATS, Google and DiffVec datasets.  These are the data we used to train and test.
 Regarding SAT dataset, please kindly ask Peter Turney.
 
 # Analogy classification 
