@@ -1,5 +1,5 @@
 import numpy as np
-import os,csv,datetime,random
+import csv, datetime, random, os
 from datetime import date
 import pandas as pd
 from pandas import read_csv
@@ -7,37 +7,41 @@ from pandas import read_csv
 from sklearn import metrics 
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import KFold
+from sklearn.metrics import confusion_matrix, classification_report, f1_score, precision_score, recall_score
 
-from sklearn.metrics import average_precision_score, recall_score, precision_score, f1_score
-
-###SHOULD BE STRATIFIED KFOLD
-
-###  UTILITIES
+###  UTILITIES TO BE IMPORTED
 import utils
-####
-#SHUFFLE THEN SPLIT THEN EXTEND (METHOD 2) - CREATE THE NEGATIVE EXAMPLES BY PERMUTATION - DATASET ONLY MADE OF VALID ANALOGIES
-def doCrossValid(size,dataset,n,batch,epochsNumber):
+###
+#1- GOOGLE DATASET SHUFFLE THEN SPLIT THEN EXTEND (METHOD 2) - CREATE THE NEGATIVE EXAMPLES BY PERMUTATION - DATASET MADE OF VALID ANALOGIES
+def doCrossValidGoogle(size,dataset,n,epochsNumber):
     names=['a', 'b', 'c', 'd','label'] #no header on dataset
     data = read_csv(dataset, names=names, header=None)
     array = data.values
     X = array[:,0:5]
+    batch=len(X)
     #randomness versus determinism
     seed = 7
     np.random.seed(seed)
     kfold = KFold(n_splits=n,shuffle=True,random_state=7) #WE SHUFFLE THE DATASET
     cvscores = []
+    
+    #Slim - add precision recalls
+    precisionScores=[]
+    recallScores=[]
+    f1Scores=[]
+    
     i=1
     for train_index, test_index in kfold.split(X): #WE SPLIT
         # TRAINING SET
         train='train_'+str(i)+'.csv'
         pd.DataFrame(X[train_index],columns=names).to_csv(train) #train csv created
-        X_train, y_train  = utils.extend(gloveModel,size,train)  #WE EXTEND
+        X_train, y_train  = utils.extendGoogle(gloveModel,size,train)  #WE EXTEND
         print(X_train.shape)
         
         # TESTING SET
         test='test_'+str(i)+'.csv'
         pd.DataFrame(X[test_index],columns=names).to_csv(test) #test csv created
-        X_test, y_test = utils.extend(gloveModel,size,test) #8 pos permut + 16 neg permut
+        X_test, y_test = utils.extendGoogle(gloveModel,size,test) #8 pos permut + 16 neg permut
         print(X_test.shape)
         
         #CREATE MODEL SAME STRUCTURE
@@ -49,11 +53,29 @@ def doCrossValid(size,dataset,n,batch,epochsNumber):
         
         #TEST MODEL
         scores = NNmodel.evaluate(X_test, y_test, verbose=0) 
-        cvscores.append(scores[1] * 100)
-        i+=1
-    print(dataset,": ",n," cross folds AVERAGE ACCURACY for ",epochsNumber," epochs: ",np.mean(cvscores)," and STANDARD DEVIATION: ",np.std(cvscores))                                                                                                                           
     
-#SPECIAL CASE OF SAT WITH TURNEY NEGATIVE EXAMPLES  
+        #Slim - add precision recalls             
+        predicted=NNmodel.predict(X_test)
+        tn, fp, fn, tp = confusion_matrix(y_test,np.around(np.array(predicted), 0)).ravel()  
+        print("tp=", tp, "fp=", fp, "tn=",tn, "fn=",fn)
+  
+        print(classification_report(y_test,np.around(np.array(predicted), 0)))  
+ 
+        precisionScores.append(precision_score(y_test,np.around(np.array(predicted), 0), average='binary'))
+        recallScores.append(recall_score(y_test,np.around(np.array(predicted), 0), average='binary'))
+        f1Scores.append(f1_score(y_test,np.around(np.array(predicted), 0), average='binary'))        
+        cvscores.append(scores[1] * 100)
+        
+        i+=1
+       # NNmodel.save("Method2-folds: "+str(n)+"--"+str(epochsNumber)+"epochDim"+str(size)+"fold_"+str(i)+".h5")
+        
+    print(dataset,": ",n," cross folds AVERAGE ACCURACY for ",epochsNumber," epochs: ",np.mean(cvscores)," and STANDARD DEVIATION: ",np.std(cvscores))
+    print("Average precision %.2f" % np.mean(precisionScores), "($\pm$ %.2f)" % np.std(precisionScores)) 
+    print("Average recall    %.2f" % np.mean(recallScores), "($\pm$ %.2f)" % np.std(recallScores))                                       
+    print("Average f1        %.2f" % np.mean(f1Scores), "($\pm$ %.2f)" % np.std(f1Scores))
+                                                                                                                           
+    
+#2 - SAT DATASET WITH TURNEY NEGATIVE EXAMPLES  
 def doCrossValidSAT(size,dataset,n,batch,epochsNumber):
     names=['a', 'b', 'c', 'd','e'] #no header on dataset
     data = read_csv(dataset, names=names, header=None)
@@ -64,9 +86,12 @@ def doCrossValidSAT(size,dataset,n,batch,epochsNumber):
     np.random.seed(seed)
     kfold = KFold(n_splits=n,shuffle=True,random_state=7) #WE SHUFFLE THE DATASET
     cvscores = []
-    precisionscores=[]
-    recallscores=[]
-    f1scores=[]
+    
+    #Slim - add precision recalls
+    precisionScores=[]
+    recallScores=[]
+    f1Scores=[]
+    
     i=1
     for train_index, test_index in kfold.split(X): #WE SPLIT
         # TRAINING SET
@@ -89,39 +114,111 @@ def doCrossValidSAT(size,dataset,n,batch,epochsNumber):
         #TRAIN MODEL
         NNmodel.fit(X_train, y_train, epochs=epochsNumber, batch_size=batch, verbose=0)
         
-        #TEST MODEL AND GET METRICS
-        scores = NNmodel.evaluate(X_test, y_test, verbose=0)
-        y_score = NNmodel.decision_function(X_test)
-        precision, recall, _ = precision_recall_curve(y_test,y_score)
+        #TEST MODEL
+        scores = NNmodel.evaluate(X_test, y_test, verbose=0) 
+
+        #Slim - add precision recalls             
+        predicted=NNmodel.predict(X_test)
+        tn, fp, fn, tp = confusion_matrix(y_test,np.around(np.array(predicted), 0)).ravel()  
+        print("tp=", tp, "fp=", fp, "tn=",tn, "fn=",fn)
+  
+        print(classification_report(y_test,np.around(np.array(predicted), 0)))  
+ 
+        precisionScores.append(precision_score(y_test,np.around(np.array(predicted), 0), average='binary'))
+        recallScores.append(recall_score(y_test,np.around(np.array(predicted), 0), average='binary'))
+        f1Scores.append(f1_score(y_test,np.around(np.array(predicted), 0), average='binary'))       
+        
         cvscores.append(scores[1] * 100)
-        precisionscores.append(precision)
-        recallscores.append(recall)
-        f1scores.append(2*precision*recall/(precision+recall))
+        i+=1
+        #NNmodel.save("SAT-Method2-folds: "+str(n)+"--"+str(epochsNumber)+"epochDim"+str(size)+"fold_"+str(i)+".h5")
+    print(dataset,": ",n," cross folds AVERAGE ACCURACY for ",epochsNumber," epochs: ",np.mean(cvscores)," and STANDARD DEVIATION: ",np.std(cvscores)) 
+    print("Average precision %.2f" % np.mean(precisionScores), "($\pm$ %.2f)" % np.std(precisionScores)) 
+    print("Average recall    %.2f" % np.mean(recallScores), "($\pm$ %.2f)" % np.std(recallScores))                            
+    print("Average f1        %.2f" % np.mean(f1Scores), "($\pm$ %.2f)" % np.std(f1Scores))
+
+    
+#3- DIFFVEC DATASET SHUFFLE THEN SPLIT THEN EXTEND (METHOD 2) - INITIAL DATASET ONLY MADE OF VALID ANALOGIES
+def doCrossValidDiffVec(size,dataset,n,epochsNumber):
+    names=['a', 'b', 'c', 'd','label'] #no header on dataset
+    data = read_csv(dataset, names=names, header=None)
+    array = data.values
+    X = array[:,0:5]
+    batch=len(X)
+    #randomness versus determinism
+    seed = 7
+    np.random.seed(seed)
+    kfold = KFold(n_splits=n,shuffle=True,random_state=7) #WE SHUFFLE THE DATASET
+    cvscores = []
+    
+    #Slim - add precision recalls
+    precisionScores=[]
+    recallScores=[]
+    f1Scores=[]
+    
+    i=1
+    for train_index, test_index in kfold.split(X): #WE SPLIT
+        # TRAINING SET
+        train='train_'+str(i)+'.csv'
+        pd.DataFrame(X[train_index],columns=names).to_csv(train) #train csv created
+        X_train, y_train  = utils.extendDiffVec(gloveModel,size,train)  #WE EXTEND
+        print(X_train.shape)
+        
+        # TESTING SET
+        test='test_'+str(i)+'.csv'
+        pd.DataFrame(X[test_index],columns=names).to_csv(test) #test csv created
+        X_test, y_test = utils.extendDiffVec(gloveModel,size,test) #8 pos permut + 16 neg permut
+        print(X_test.shape)
+        
+        #CREATE MODEL SAME STRUCTURE
+        input_shape=(size,4,1) 
+        NNmodel = utils.createCNNModel(input_shape)
+        
+        #TRAIN MODEL
+        NNmodel.fit(X_train, y_train, epochs=epochsNumber, batch_size=batch, verbose=0)
+        
+        #TEST MODEL
+        scores = NNmodel.evaluate(X_test, y_test, verbose=0) 
+    
+        #Slim - add precision recalls             
+        predicted=NNmodel.predict(X_test)
+        tn, fp, fn, tp = confusion_matrix(y_test,np.around(np.array(predicted), 0)).ravel()  
+        print("tp=", tp, "fp=", fp, "tn=",tn, "fn=",fn)
+  
+        print(classification_report(y_test,np.around(np.array(predicted), 0)))  
+ 
+        precisionScores.append(precision_score(y_test,np.around(np.array(predicted), 0), average='binary'))
+        recallScores.append(recall_score(y_test,np.around(np.array(predicted), 0), average='binary'))
+        f1Scores.append(f1_score(y_test,np.around(np.array(predicted), 0), average='binary'))        
+        cvscores.append(scores[1] * 100)
         i+=1
         
-    print(dataset,": ",n," cross-folds AVERAGE ACCURACY for ",epochsNumber," epochs: ",np.mean(cvscores)," and STANDARD DEVIATION: ",np.std(cvscores),'precision:', np.mean(precisionscores),'recall:', np.mean(recallscores),'f1:', np.mean(f1scores)) 
-
-#HERE IS AN EXAMPLE OF AN INITIAL DATASET COMING FROM GOOGLE (class 5)
-#THE GOOGLE DATASET PROPERLY SPLITTED ARE IN THE DATA FOLDER
+    print(dataset,": ",n," cross folds AVERAGE ACCURACY for ",epochsNumber," epochs: ",np.mean(cvscores)," and STANDARD DEVIATION: ",np.std(cvscores))
+    print("Average precision %.2f" % np.mean(precisionScores), "($\pm$ %.2f)" % np.std(precisionScores)) 
+    print("Average recall    %.2f" % np.mean(recallScores), "($\pm$ %.2f)" % np.std(recallScores))                                       
+    print("Average f1        %.2f" % np.mean(f1Scores), "($\pm$ %.2f)" % np.std(f1Scores))
+                          
+#GLOBAL VARIABLES - NO HEADER a b c d label in the dataset
 #DATASET = '../data/GOOGLE/questions-words-prime5.csv'
+FOLDER_DIFFVEC='../data/DIFFVEC/diffvecAnalogiesByClass/'
+FOLDER_GOOGLE='../data/GOOGLE/'
+DATASETDIFFVEC=os.listdir(FOLDER_DIFFVEC) 
+DATASETGOOGLE = os.listdir(FOLDER_GOOGLE)
+#FOR SAT DATASET: ASK PETER TURNEY
 
 FOLDS=10
-BATCH=1000
-#WE DECIDE WHICH FOLDER TO DEAL WITH - ALL DATA SHOULD BE INSIDE THE DATA FOLDER AS CSV
-
-folder='../data/BATS-CSV/4_Lexicographic_semantics'
-list_file=os.listdir(folder)
-for file in list_file:
-    DATASET=os.path.join(folder,file)
-    print('START WITH ', DATASET )
-    for GLOVEDIMENSION in [50]:
-        print('************** START DIMENSION: ', str(GLOVEDIMENSION),' **************')
-        gloveFile = "../../models/glove.6B."+str(GLOVEDIMENSION)+"d.clean.txt"
-        gloveModel, size = utils.loadGloveModel(gloveFile) 
-        input_shape=(size,4,1) 
-        for epochsNumber in [5]:
-            print('Epoch: '+str(epochsNumber)+' - dimension: '+str(GLOVEDIMENSION))
-            #doCrossValidSAT(GLOVEDIMENSION,DATASET,FOLDS,BATCH,epochsNumber)
-            doCrossValid(size,DATASET,FOLDS,BATCH,epochsNumber)
-            print(DATASET,' : ************** END DIMENSION: ', str(GLOVEDIMENSION),' **************')
-    print('END WITH ', DATASET )
+for FILE in DATASETGOOGLE:
+    DATASET=FOLDER_GOOGLE+FILE
+    if (os.stat(DATASET).st_size)< 30000: #TO AVOID TOO BIG FILES N(N_1)/2
+        print('START WITH ', FILE )
+        for GLOVEDIMENSION in [100]:
+            print('************** START DIMENSION: ', str(GLOVEDIMENSION),' **************')
+            gloveFile = "../GloveModels/glove.6B."+str(GLOVEDIMENSION)+"d.clean.txt"
+            gloveModel, size = utils.loadGloveModel(gloveFile) 
+            input_shape=(size,4,1) 
+            for epochsNumber in [10]:
+                print("GOOGLE METHOD: ",DATASET, ' Epoch: '+str(epochsNumber)+' - Glove dimension: '+str(GLOVEDIMENSION))
+                doCrossValidGoogle(GLOVEDIMENSION,DATASET,FOLDS,epochsNumber)
+                print("DIFFVEC METHOD: ",DATASET, ' Epoch: '+str(epochsNumber)+' - Glove dimension: '+str(GLOVEDIMENSION))
+                doCrossValidDiffVec(GLOVEDIMENSION,DATASET,FOLDS,epochsNumber)
+                print(DATASET,' : ************** END DIMENSION: ', str(GLOVEDIMENSION),' **************')
+            print('END WITH ', DATASET )
