@@ -14,10 +14,10 @@ then run : python3.7 10CrossValidTest.py
 # Analogy completion as a regression task
 The program for running the neural network regression is multiVariateRegression.py and it expects four parameters:
 - first param is number of Glove Vector Dimension (50)
-- second param is number of epochs (100)
-- third parameter is the filename of the analogy file (../../data/GOOGLE/questions-words-prime1-comcap.csv)
+- second param is number of epochs (30)
+- third parameter is the filename of the analogy file (../GOOGLE/questions-words-prime1.csv)
 - fourth parameter is KFold or Stratified (if the analogy has more than one class, then use Stratified)
 Example:
-        python3.7 multiVariateRegression.py 50 100 ../../data/GOOGLE/questions-words-prime1-comcap.csv KFold
+        python3.7 multiVariateRegression.py 50 30 ../GOOGLE/questions-words-prime1.csv KFold
 
-The analogy file is assumed to be in this location "../../models/" if your model is in a different location, then modify line 40 in multiVariateRegression
+The analogy file is assumed to be in this location "../../models/" if your model is in a different location, then modify line 40 in multiVariateRegression.py
