@@ -54,7 +54,7 @@ pandas==0.25.2
 passlib==1.7.2
 pdfcrowd==4.11.0
 pdfkit==0.6.1
-Pillow==6.2.1
+Pillow==8.1.1
 plotly==4.3.0
 pluggy==0.13.1
 protobuf==3.6.1
