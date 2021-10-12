@@ -48,7 +48,7 @@ more-itertools==8.0.0
 mysql-connector-python==8.0.19
 numpy==1.17.3
 oauthlib==2.0.6
-opencv-python==4.1.1.26
+opencv-python==4.2.0.32
 packaging==19.2
 pandas==0.25.2
 passlib==1.7.2
