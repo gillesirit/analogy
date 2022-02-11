@@ -54,7 +54,7 @@ pbr==5.1.2
 pexpect==4.6.0
 Pillow==5.4.1
 progressbar2==3.51.4
-protobuf==3.6.1
+protobuf==3.15.0
 pyasn1==0.4.2
 pycairo==1.16.2
 pycrypto==2.6.1
