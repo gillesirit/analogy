@@ -92,7 +92,7 @@ speg==0.3
 system-query==0.2.7
 tables==3.6.1
 tensorboard==1.12.2
-tensorflow==1.13.0rc1
+tensorflow==2.9.3
 tensorflow-estimator==1.13.0rc0
 termcolor==1.1.0
 tqdm==4.47.0
